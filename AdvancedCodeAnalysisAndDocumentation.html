@@ -1,0 +1,950 @@
+<html><head><base href=".">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/@xmldom/xmldom@0.8.10/dom.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "docx": "https://cdn.skypack.dev/docx@8.2.3",
+        "jspdf": "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as docx from 'docx';
+    import * as jspdf from 'jspdf';
+    window.docx = docx;
+    window.jspdf = jspdf;
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 40px;
+      background: #141418;
+      color: #eaeaea;
+      line-height: 1.6;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    .panel {
+      background: #1e1e24;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      position: relative;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .editor {
+      height: 600px;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    .output {
+      white-space: pre-wrap;
+      font-family: 'Fira Code', monospace;
+      overflow-y: auto;
+      height: 600px;
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    .controls {
+      display: flex;
+      gap: 15px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .documentation {
+      margin-top: 30px;
+    }
+
+    h1, h2 {
+      color: #60a5fa;
+      font-weight: 600;
+    }
+
+    .error {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      margin: 1.5rem 0;
+    }
+
+    .error pre {
+      background: rgba(0,0,0,0.1);
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 0.9em;
+      margin-top: 1rem;
+    }
+
+    .language-select, .export-select {
+      background: #1e1e24;
+      color: #eaeaea;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      margin-right: 12px;
+      min-width: 140px;
+    }
+
+    .upload-label {
+      background: #1e1e24;
+      color: #eaeaea;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px dashed rgba(255,255,255,0.2);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .upload-label:hover {
+      background: #2a2a32;
+      border-color: rgba(255,255,255,0.3);
+    }
+
+    .loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      display: none;
+    }
+
+    .loading-spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #0078d4;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Add tabbed interface styles */
+    .tab-container {
+      margin-bottom: 30px;
+    }
+
+    .tab-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tab-button {
+      padding: 12px 24px;
+      background: #1e1e24;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: #eaeaea;
+      cursor: pointer;
+    }
+
+    .tab-button.active {
+      background: #2563eb;
+      border-color: #2563eb;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Add styles for scan results */
+    .scan-results {
+      background: #1e1e24;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .vulnerability-item, .accessibility-item {
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+
+    .severity-high {
+      border-left: 4px solid #ef4444;
+    }
+
+    .severity-medium {
+      border-left: 4px solid #f59e0b; 
+    }
+
+    .severity-low {
+      border-left: 4px solid #10b981;
+    }
+
+    .fix-button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .recommendation {
+      background: rgba(255,255,255,0.05);
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+
+    .recommendation strong {
+      color: #60a5fa;
+    }
+
+    .accessibility-item {
+      margin-bottom: 20px;
+      padding: 20px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .accessibility-item h4 {
+      margin: 0 0 10px 0;
+      color: #60a5fa;
+    }
+
+    .accessibility-item p {
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Advanced Code Analysis and Documentation</h1>
+
+  <div class="tab-container">
+    <div class="tab-buttons">
+      <button class="tab-button active" data-tab="documentation">Documentation</button>
+      <button class="tab-button" data-tab="vulnerabilities">Security Scan</button>
+      <button class="tab-button" data-tab="accessibility">Accessibility</button>
+    </div>
+
+    <div class="tab-content active" id="documentation-tab">
+      <div class="container">
+        <div class="panel">
+          <h2>Source Code</h2>
+          <div class="controls">
+            <label class="upload-label" for="fileUpload">
+              Upload File
+            </label>
+            <input type="file" id="fileUpload" class="file-upload" accept=".py,.js,.java,.cpp,.cs,.php">
+            
+            <select id="languageSelect" class="language-select" onchange="changeLanguage()">
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+              <option value="java">Java</option>
+              <option value="cpp">C++</option>
+              <option value="csharp">C#</option>
+              <option value="php">PHP</option>
+            </select>
+            
+            <select id="exportFormat" class="export-select">
+              <option value="markdown">Markdown</option>
+              <option value="html">HTML</option>
+              <option value="pdf">PDF</option>
+              <option value="docx">DOCX</option>
+              <option value="txt">Text</option>
+            </select>
+            
+            <button onclick="generateDocs()">Generate Documentation</button>
+            <button onclick="exportDocs()">Export</button>
+          </div>
+          <div id="editor" class="editor"></div>
+        </div>
+        
+        <div class="panel">
+          <h2>Generated Documentation</h2>
+          <div id="output" class="output"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="vulnerabilities-tab">
+      <div class="panel">
+        <h2>Code Security Scanner</h2>
+        <div class="controls">
+          <button onclick="scanCode()">Scan for Vulnerabilities</button>
+        </div>
+        <div id="vulnerability-results" class="scan-results"></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="accessibility-tab"> 
+      <div class="panel">
+        <h2>Accessibility Checker</h2>
+        <div class="controls">
+          <button onclick="checkAccessibility()">Check Accessibility</button>
+        </div>
+        <div id="accessibility-results" class="scan-results"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <script>
+    // Tab switching logic
+    document.querySelectorAll('.tab-button').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        button.classList.add('active');
+        document.getElementById(`${button.dataset.tab}-tab`).classList.add('active');
+      });
+    });
+
+    const editor = ace.edit("editor");
+    editor.setTheme("ace/theme/monokai");
+    editor.session.setMode("ace/mode/python");
+    const converter = new showdown.Converter();
+    const fileExtToLang = {
+      '.py': 'python',
+      '.js': 'javascript',
+      '.java': 'java',
+      '.cpp': 'cpp',
+      '.cs': 'csharp',
+      '.php': 'php'
+    };
+    const languagePatterns = {
+      python: {
+        keywords: ['def', 'class', 'import', 'from', 'if __name__'],
+        syntax: ['.py', '"""', "'''"]
+      },
+      javascript: {
+        keywords: ['function', 'const', 'let', 'var', 'class', 'import', 'export'],
+        syntax: ['.js', '//', '/*']
+      },
+      java: {
+        keywords: ['public class', 'private', 'protected', 'package', 'import'],
+        syntax: ['.java', '//', '/*']
+      }
+    };
+    let isGenerating = false;
+    let currentDocumentation = null;
+
+    function detectLanguage(code) {
+      const scores = {};
+      for (const [lang, patterns] of Object.entries(languagePatterns)) {
+        scores[lang] = 0;
+        patterns.keywords.forEach(keyword => {
+          const matches = (code.match(new RegExp(keyword, 'g')) || []).length;
+          scores[lang] += matches;
+        });
+        patterns.syntax.forEach(syntax => {
+          if (code.includes(syntax)) scores[lang]++;
+        });
+      }
+      return Object.entries(scores).reduce((a, b) => b[1] > a[1] ? b : a)[0];
+    }
+
+    document.getElementById('fileUpload').addEventListener('change', async event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async e => {
+        const content = e.target.result;
+        editor.setValue(content);
+        const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        const detectedLang = fileExtToLang[fileExt] || detectLanguage(content);
+        document.getElementById('languageSelect').value = detectedLang;
+        editor.session.setMode(`ace/mode/${detectedLang}`);
+      };
+      reader.readAsText(file);
+    });
+
+    async function generateDocs() {
+      if (isGenerating) return;
+      const code = editor.getValue();
+      if (!code.trim()) {
+        handleError(new Error('Please enter some code first'));
+        return;
+      }
+      const language = document.getElementById('languageSelect').value;
+      document.querySelector('.loading').style.display = 'flex';
+      isGenerating = true;
+      try {
+        const response = await fetch('/api/ai_completion', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            prompt: `Generate comprehensive documentation for the following ${language} code. Include:
+                - Overview
+                - Class and method descriptions with examples
+                - Parameters and return values
+                - Usage instructions and best practices
+                Format response in markdown.
+                
+                interface Response {
+                  documentation: string;
+                  error?: string;
+                }`,
+            data: code
+          })
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        if (!data.documentation) {
+          throw new Error('No documentation received');
+        }
+        currentDocumentation = data.documentation;
+        document.getElementById('output').innerHTML = converter.makeHtml(currentDocumentation);
+      } catch (error) {
+        handleError(error, 'Documentation generation failed');
+      } finally {
+        isGenerating = false;
+        document.querySelector('.loading').style.display = 'none';
+      }
+    }
+
+    async function exportDocs() {
+      if (!currentDocumentation) {
+        handleError(new Error('Please generate documentation first'));
+        return;
+      }
+      const format = document.getElementById('exportFormat').value;
+      const content = document.getElementById('output').innerHTML;
+      try {
+        switch (format) {
+          case 'markdown':
+            downloadFile(currentDocumentation, 'documentation.md', 'text/markdown');
+            break;
+          case 'html':
+            const htmlContent = `<!DOCTYPE html>
+              <html>
+                <head>
+                  <meta charset="UTF-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <style>
+                    body { 
+                      font-family: system-ui;
+                      max-width: 900px;
+                      margin: 2rem auto;
+                      padding: 2rem;
+                      line-height: 1.6;
+                    }
+                    pre { 
+                      background: #f6f8fa;
+                      padding: 1rem;
+                      border-radius: 6px;
+                      overflow-x: auto;
+                    }
+                    code { font-family: monospace; }
+                  </style>
+                </head>
+                <body>${content}</body>
+              </html>`;
+            downloadFile(htmlContent, 'documentation.html', 'text/html');
+            break;
+          case 'pdf':
+            await generatePDF();
+            break;
+          case 'docx':
+            await generateDOCX();
+            break;
+          case 'txt':
+            downloadFile(document.getElementById('output').textContent, 'documentation.txt', 'text/plain');
+            break;
+        }
+      } catch (error) {
+        handleError(error, `Failed to export as ${format.toUpperCase()}`);
+      }
+    }
+
+    async function generatePDF() {
+      try {
+        const element = document.getElementById('output');
+        const canvas = await html2canvas(element);
+        const imgData = canvas.toDataURL('image/png');
+        
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = canvas.height * pdfWidth / canvas.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save('documentation.pdf');
+      } catch (error) {
+        handleError(error, 'PDF generation failed');
+      }
+    }
+
+    async function generateDOCX() {
+      try {
+        const { Document, Paragraph, TextRun, Packer } = docx;
+        const doc = new Document({
+          sections: [{
+            properties: {},
+            children: currentDocumentation.split('\n').map(line => 
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: line,
+                    size: 24
+                  })
+                ]
+              })
+            )
+          }]
+        });
+
+        const blob = await Packer.toBlob(doc);
+        downloadFile(blob, 'documentation.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      } catch (error) {
+        handleError(error, 'DOCX generation failed');
+      }
+    }
+
+    function downloadFile(content, filename, type) {
+      const blob = content instanceof Blob ? content : new Blob([content], {
+        type
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    }
+
+    const sampleCode = {
+      python: `class Calculator:
+            """A simple calculator class for basic arithmetic operations."""
+            
+            def add(self, a, b):
+                """Add two numbers and return the result."""
+                return a + b
+                
+            def subtract(self, a, b):
+                """Subtract b from a and return the result."""
+                return a - b
+
+      def process_data(data):
+          """Process input data and return transformed results."""
+          return [x * 2 for x in data]`,
+      javascript: `/**
+       * Calculator class for basic arithmetic operations
+       */
+      class Calculator {
+        /**
+         * Add two numbers and return the result
+         */
+        add(a, b) {
+          return a + b;
+        }
+        
+        /**
+         * Subtract b from a and return the result
+         */
+        subtract(a, b) {
+          return a - b;
+        }
+      }
+
+      /**
+       * Process input data and return transformed results
+       */
+      function processData(data) {
+        return data.map(x => x * 2);
+      }`,
+      java: `/**
+       * Calculator class for basic arithmetic operations
+       */
+      public class Calculator {
+          /**
+           * Add two numbers and return the result
+           */
+          public int add(int a, int b) {
+              return a + b;
+          }
+          
+          /**
+           * Subtract b from a and return the result
+           */
+          public int subtract(int a, int b) {
+              return a - b;
+          }
+      }
+
+      /**
+       * Utility class for data processing
+       */
+      public class DataProcessor {
+          /**
+           * Process input data and return transformed results
+           */
+          public static int[] processData(int[] data) {
+              return java.util.Arrays.stream(data)
+                          .map(x -> x * 2)
+                          .toArray();
+          }
+      }`,
+      cpp: `/**
+       * Calculator class for basic arithmetic operations
+       */
+      class Calculator {
+      public:
+          /**
+           * Add two numbers and return the result
+           */
+          int add(int a, int b) {
+              return a + b;
+          }
+          
+          /**
+           * Subtract b from a and return the result
+           */
+          int subtract(int a, int b) {
+              return a - b;
+          }
+      };
+
+      /**
+       * Process input data and return transformed results
+       */
+      void processData(int data[], int size) {
+          for (int i = 0; i < size; i++) {
+              data[i] *= 2;
+          }
+      }`,
+      csharp: `/**
+       * Calculator class for basic arithmetic operations
+       */
+      public class Calculator {
+          /**
+           * Add two numbers and return the result
+           */
+          public int Add(int a, int b) {
+              return a + b;
+          }
+          
+          /**
+           * Subtract b from a and return the result
+           */
+          public int Subtract(int a, int b) {
+              return a - b;
+          }
+      }
+
+      /**
+       * Utility class for data processing
+       */
+      public class DataProcessor {
+          /**
+           * Process input data and return transformed results
+           */
+          public static int[] ProcessData(int[] data) {
+              return data.Select(x => x * 2).ToArray();
+          }
+      }`,
+      php: `/**
+       * Calculator class for basic arithmetic operations
+       */
+      class Calculator {
+          /**
+           * Add two numbers and return the result
+           */
+          public function add($a, $b) {
+              return $a + $b;
+          }
+          
+          /**
+           * Subtract b from a and return the result
+           */
+          public function subtract($a, $b) {
+              return $a - $b;
+          }
+      }
+
+      /**
+       * Process input data and return transformed results
+       */
+      function process_data($data) {
+          return array_map(function($x) { return $x * 2; }, $data);
+      }`
+    };
+
+    editor.setValue(sampleCode.python);
+
+    function handleError(error, message = 'An error occurred') {
+      console.error('Error details:', error);
+      const errorMsg = error.message || message;
+      
+      // Find the active tab and its results container
+      const activeTab = document.querySelector('.tab-content.active');
+      if (!activeTab) return;
+      
+      const resultsContainer = activeTab.querySelector('.scan-results') || 
+                              activeTab.querySelector('.output');
+      
+      if (resultsContainer) {
+        resultsContainer.innerHTML = `
+          <div class="error">
+            <h3>Error</h3>
+            <p>${errorMsg}</p>
+            ${error.stack ? `<pre>${error.stack}</pre>` : ''}
+          </div>
+        `;
+      }
+      
+      document.querySelector('.loading').style.display = 'none';
+    }
+
+    async function scanCode() {
+      const code = editor.getValue();
+      if (!code.trim()) {
+        handleError(new Error('Please enter code to scan'));
+        return;
+      }
+
+      document.querySelector('.loading').style.display = 'flex';
+      try {
+        const response = await fetch('/api/ai_completion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: `Analyze this code for security vulnerabilities and return properly formatted results.
+            
+            <typescript-interface>
+            interface Vulnerability {
+              severity: 'high' | 'medium' | 'low';
+              description: string;
+              fix: string;
+            }
+            interface Response {
+              vulnerabilities: Vulnerability[];
+              error?: string;
+            }
+            </typescript-interface>`,
+            data: code
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        if (!data.vulnerabilities) {
+          throw new Error('Invalid scan results format');
+        }
+
+        displayVulnerabilities(data.vulnerabilities);
+        
+      } catch (error) {
+        handleError(error, 'Security scan failed');
+      } finally {
+        document.querySelector('.loading').style.display = 'none';
+      }
+    }
+
+    function displayVulnerabilities(vulnerabilities) {
+      const container = document.getElementById('vulnerability-results');
+      
+      if (!vulnerabilities || !Array.isArray(vulnerabilities) || vulnerabilities.length === 0) {
+        container.innerHTML = '<p>No vulnerabilities found</p>';
+        return;
+      }
+
+      container.innerHTML = vulnerabilities.map(v => `
+        <div class="vulnerability-item severity-${v.severity || 'low'}">
+          <h4>Severity: ${v.severity || 'Unknown'}</h4>
+          <p>${v.description || 'No description available'}</p>
+          <pre><code>${v.fix || 'No fix available'}</code></pre>
+          <button class="fix-button" onclick="applyFix(this.previousElementSibling.textContent)">
+            Apply Fix
+          </button>
+        </div>
+      `).join('');
+    }
+
+    async function checkAccessibility() {
+      const code = editor.getValue();
+      if (!code.trim()) {
+        handleError(new Error('Please enter code to check'));
+        return;
+      }
+
+      document.querySelector('.loading').style.display = 'flex';
+      try {
+        const response = await fetch('/api/ai_completion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: `Analyze the following code for accessibility issues. Focus on:
+              - Semantic HTML usage
+              - ARIA attributes and roles
+              - Color contrast
+              - Keyboard navigation
+              - Screen reader compatibility
+              
+              For each issue found, provide:
+              - Severity level
+              - Clear description of the problem
+              - Specific recommendations to fix it
+              
+              <typescript-interface>
+              interface AccessibilityIssue {
+                severity: 'high' | 'medium' | 'low';
+                description: string;
+                recommendation: string;
+                lineNumber?: number;
+              }
+              interface Response {
+                issues: AccessibilityIssue[];
+              }
+              </typescript-interface>
+              
+              <example-response>
+              {
+                "issues": [
+                  {
+                    "severity": "high",
+                    "description": "Missing alt text on image",
+                    "recommendation": "Add descriptive alt attribute",
+                    "lineNumber": 23
+                  }
+                ]
+              }
+              </example-response>`,
+            data: code
+          })
+        });
+
+        const data = await response.json();
+        
+        if (!data || !data.issues) {
+          throw new Error('Invalid accessibility check results');
+        }
+
+        displayAccessibilityIssues(data.issues);
+
+      } catch (error) {
+        handleError(error, 'Accessibility check failed');
+      } finally {
+        document.querySelector('.loading').style.display = 'none'; 
+      }
+    }
+
+    function displayAccessibilityIssues(issues) {
+      const container = document.getElementById('accessibility-results');
+      
+      if (!Array.isArray(issues) || issues.length === 0) {
+        container.innerHTML = `
+          <div class="accessibility-item severity-low">
+            <h4>Analysis Complete</h4>
+            <p>No accessibility issues were found in the code.</p>
+          </div>`;
+        return;
+      }
+      
+      const issuesHtml = issues.map(issue => {
+        const severityClass = issue.severity ? `severity-${issue.severity}` : 'severity-low';
+        return `
+          <div class="accessibility-item ${severityClass}">
+            <h4>Severity: ${issue.severity || 'Unknown'}</h4>
+            ${issue.lineNumber ? `<p><strong>Line ${issue.lineNumber}</strong></p>` : ''}
+            <p>${issue.description || 'No description available'}</p>
+            <div class="recommendation">
+              <strong>Recommendation:</strong>
+              <p>${issue.recommendation || 'No recommendation available'}</p>
+            </div>
+          </div>`;
+      }).join('');
+
+      container.innerHTML = `
+        <h3>Accessibility Analysis Results</h3>
+        <p>Found ${issues.length} issue${issues.length === 1 ? '' : 's'}</p>
+        ${issuesHtml}`;
+    }
+
+    function applyFix(fixCode) {
+      editor.setValue(fixCode.trim());
+    }
+
+    function changeLanguage() {
+      const language = document.getElementById('languageSelect').value;
+      editor.session.setMode(`ace/mode/${language}`);
+      editor.setValue(sampleCode[language]);
+    }
+  </script>
+</body>
+</html>
