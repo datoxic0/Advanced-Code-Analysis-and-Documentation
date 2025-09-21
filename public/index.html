@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Advanced Code Analysis and Documentation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../src/assets/styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/ace.js"></script>
+</head>
+<body>
+  <h1>Advanced Code Analysis & Documentation</h1>
+  <div id="tab-container">
+    <div role="tablist" aria-label="Main panels">
+      <button role="tab" id="tab-code" aria-controls="panel-code">Code</button>
+      <button role="tab" id="tab-analysis" aria-controls="panel-analysis">Analysis</button>
+      <button role="tab" id="tab-docs" aria-controls="panel-docs">Docs</button>
+    </div>
+  </div>
+  <section id="panel-code" role="tabpanel" aria-labelledby="tab-code">
+    <div id="editor" style="height:300px;width:100%"></div>
+    <button onclick="window.scanCode()">Scan</button>
+    <button onclick="window.exportCode('pdf')">Export PDF</button>
+    <button onclick="window.exportCode('docx')">Export DOCX</button>
+  </section>
+  <section id="panel-analysis" role="tabpanel" aria-labelledby="tab-analysis" hidden>
+    <h2>Analysis Summary</h2>
+    <div id="analysis-summary"></div>
+    <ul id="analysis-issues"></ul>
+  </section>
+  <section id="panel-docs" role="tabpanel" aria-labelledby="tab-docs" hidden>
+    <h2>Documentation</h2>
+    <p>Auto-generated documentation will appear here.</p>
+  </section>
+  <div id="toast" class="toast"></div>
+  <div class="loading" id="loading">
+    <div class="loading-spinner"></div>
+  </div>
+  <script type="module">
+    import { setupTabs } from '../src/js/tabs.js';
+    import { setupEditor } from '../src/js/editor.js';
+    import { scanCode } from '../src/js/scan.js';
+    import { exportCode } from '../src/js/export.js';
+    import { setupAccessibility } from '../src/js/accessibility.js';
+    setupTabs();
+    setupEditor();
+    setupAccessibility();
+    window.scanCode = scanCode;
+    window.exportCode = exportCode;
+  </script>
+</body>
+</html>
