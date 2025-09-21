@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Advanced Code Analysis and Documentation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- CSP for security -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' cdnjs.cloudflare.com unpkg.com cdn.skypack.dev;">
+  <!-- Styles -->
+  <link rel="stylesheet" href="src/assets/styles.css">
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/@xmldom/xmldom@0.8.10/dom.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "docx": "https://cdn.skypack.dev/docx@8.2.3",
+        "jspdf": "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main>
+    <h1>Advanced Code Analysis and Documentation</h1>
+    <section id="tab-container"></section>
+    <div class="loading" aria-hidden="true">
+      <div class="loading-spinner"></div>
+    </div>
+    <div id="toast" role="alert"></div>
+  </main>
+  <!-- Entry point JS -->
+  <script type="module" src="src/js/app.js"></script>
+</body>
+</html>
